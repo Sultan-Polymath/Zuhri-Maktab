@@ -22,7 +22,7 @@ export function AppShell({
   const items = visibleNavItems(user.role);
 
   return (
-    <div className="flex min-h-svh w-full">
+    <div className="flex h-svh w-full">
       <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar md:flex md:flex-col">
         <div className="flex h-16 items-center gap-2 px-5">
           <span className="text-lg font-semibold text-sidebar-foreground">
