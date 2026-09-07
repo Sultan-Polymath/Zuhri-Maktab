@@ -1,0 +1,500 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Auth / staff accounts
+// ─────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  FINANCE
+  TEACHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacher                 Teacher?
+  classTransfersMade      ClassTransfer[]     @relation("ClassTransfersMade")
+  attendanceSessionsTaken AttendanceSession[] @relation("AttendanceSessionsTaken")
+  progressEntriesRecorded ProgressEntry[]     @relation("ProgressEntriesRecorded")
+  paymentsRecorded        Payment[]           @relation("PaymentsRecorded")
+  adjustmentsCreated      Adjustment[]        @relation("AdjustmentsCreated")
+  notesAuthored           Note[]              @relation("NotesAuthored")
+  auditLogsMade           AuditLog[]          @relation("AuditLogsMade")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Families / guardians / students
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ContactMethod {
+  PHONE
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+model Family {
+  id           String   @id @default(cuid())
+  surnameLabel String // display label, e.g. "Khan Family"
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  postcode     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  guardians   Guardian[]
+  students    Student[]
+  payments    Payment[]
+  adjustments Adjustment[] @relation("FamilyAdjustments")
+
+  @@index([surnameLabel])
+}
+
+model Guardian {
+  id                     String        @id @default(cuid())
+  familyId               String
+  family                 Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  name                   String
+  relationship           String // "Father", "Mother", "Uncle", "Guardian" — free text
+  phone                  String?
+  secondaryPhone         String?
+  email                  String?
+  isPrimaryContact       Boolean       @default(false)
+  isEmergencyContact     Boolean       @default(false)
+  preferredContactMethod ContactMethod @default(PHONE)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  @@index([familyId])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ENQUIRY
+  APPLICATION
+  ACTIVE
+  SUSPENDED
+  LEFT
+  TRANSFERRED
+  WAITING_LIST
+}
+
+model Student {
+  id             String        @id @default(cuid())
+  studentSeq     Int           @default(autoincrement())
+  studentCode    String        @unique // "MKT-00124", derived from studentSeq at creation
+  familyId       String
+  family         Family        @relation(fields: [familyId], references: [id])
+  firstName      String
+  middleName     String?
+  lastName       String
+  preferredName  String?
+  dob            DateTime      @db.Date
+  gender         Gender
+  addressLine1   String? // optional override; UI falls back to family address
+  addressLine2   String?
+  city           String?
+  postcode       String?
+  dateEnrolled   DateTime?     @db.Date
+  status         StudentStatus @default(ENQUIRY)
+  currentClassId String?
+  currentClass   Class?        @relation(fields: [currentClassId], references: [id])
+  leavingDate    DateTime?     @db.Date
+  leavingReason  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  classTransfers    ClassTransfer[]
+  attendanceRecords AttendanceRecord[]
+  progressEntries   ProgressEntry[]
+  feePlans          StudentFeePlan[]
+  invoices          Invoice[]
+  adjustments       Adjustment[]       @relation("StudentAdjustments")
+
+  @@index([familyId])
+  @@index([currentClassId])
+  @@index([status])
+  @@index([lastName, firstName])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Classes / teachers
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ClassStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Class {
+  id               String      @id @default(cuid())
+  name             String
+  yearGroup        String?
+  primaryTeacherId String?
+  primaryTeacher   Teacher?    @relation("PrimaryTeacherClasses", fields: [primaryTeacherId], references: [id])
+  days             String[] // e.g. ["MON","TUE","WED","THU"]
+  startTime        String // "17:00"
+  endTime          String // "18:00"
+  room             String?
+  capacity         Int
+  status           ClassStatus @default(ACTIVE)
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  students           Student[]
+  assistants         ClassStaff[]
+  transfersIn        ClassTransfer[]     @relation("TransferToClass")
+  transfersOut       ClassTransfer[]     @relation("TransferFromClass")
+  attendanceSessions AttendanceSession[]
+
+  @@index([status])
+}
+
+enum TeacherRole {
+  TEACHER
+  ASSISTANT_TEACHER
+  HEAD_TEACHER
+  ADMINISTRATOR
+}
+
+enum TeacherStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Teacher {
+  id        String        @id @default(cuid())
+  userId    String?       @unique
+  user      User?         @relation(fields: [userId], references: [id])
+  name      String
+  phone     String?
+  email     String?
+  role      TeacherRole   @default(TEACHER)
+  startDate DateTime?     @db.Date
+  status    TeacherStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  primaryClasses Class[]      @relation("PrimaryTeacherClasses")
+  assistantOf    ClassStaff[]
+}
+
+model ClassStaff {
+  id        String  @id @default(cuid())
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, teacherId])
+}
+
+model ClassTransfer {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fromClassId     String?
+  fromClass       Class?   @relation("TransferFromClass", fields: [fromClassId], references: [id])
+  toClassId       String
+  toClass         Class    @relation("TransferToClass", fields: [toClassId], references: [id])
+  transferDate    DateTime @default(now()) @db.Date
+  reason          String?
+  changedByUserId String
+  changedBy       User     @relation("ClassTransfersMade", fields: [changedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([studentId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Attendance
+// ─────────────────────────────────────────────────────────────────────────
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model AttendanceSession {
+  id            String   @id @default(cuid())
+  classId       String
+  class         Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  date          DateTime @db.Date
+  takenByUserId String
+  takenBy       User     @relation("AttendanceSessionsTaken", fields: [takenByUserId], references: [id])
+  createdAt     DateTime @default(now())
+
+  records AttendanceRecord[]
+
+  @@unique([classId, date])
+}
+
+model AttendanceRecord {
+  id        String            @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+  note      String?
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Quran / Islamic studies progress
+// ─────────────────────────────────────────────────────────────────────────
+
+model Subject {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  category  String?
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  progressEntries ProgressEntry[]
+}
+
+model ProgressEntry {
+  id               String   @id @default(cuid())
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId        String
+  subject          Subject  @relation(fields: [subjectId], references: [id])
+  date             DateTime @default(now()) @db.Date
+  summary          String? // short human-readable, e.g. "Juz 5, Surah Al-An'am"
+  details          Json? // flexible subject-specific fields (juz/surah/page/manzil/etc.)
+  rating           String? // free label, e.g. "Excellent" / "Good" / "Needs work"
+  note             String?
+  recordedByUserId String
+  recordedBy       User     @relation("ProgressEntriesRecorded", fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@index([studentId, subjectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fees / finance
+// ─────────────────────────────────────────────────────────────────────────
+
+enum FeeFrequency {
+  MONTHLY
+  TERMLY
+  ANNUAL
+  CUSTOM
+}
+
+model FeePlan {
+  id        String       @id @default(cuid())
+  name      String
+  amount    Decimal      @db.Decimal(10, 2)
+  frequency FeeFrequency
+  isActive  Boolean      @default(true)
+  notes     String?
+
+  studentPlans StudentFeePlan[]
+}
+
+model StudentFeePlan {
+  id           String    @id @default(cuid())
+  studentId    String
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feePlanId    String
+  feePlan      FeePlan   @relation(fields: [feePlanId], references: [id])
+  customAmount Decimal?  @db.Decimal(10, 2)
+  startDate    DateTime  @default(now()) @db.Date
+  endDate      DateTime? @db.Date
+  createdAt    DateTime  @default(now())
+
+  invoices Invoice[]
+
+  @@index([studentId])
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  WAIVED
+  CANCELLED
+}
+
+model Invoice {
+  id               String         @id @default(cuid())
+  studentId        String
+  student          Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentFeePlanId String
+  studentFeePlan   StudentFeePlan @relation(fields: [studentFeePlanId], references: [id])
+  periodLabel      String // "September 2026"
+  periodStart      DateTime       @db.Date
+  periodEnd        DateTime       @db.Date
+  grossAmount      Decimal        @db.Decimal(10, 2) // before adjustments
+  adjustmentTotal  Decimal        @default(0) @db.Decimal(10, 2)
+  amountDue        Decimal        @db.Decimal(10, 2) // gross - adjustments
+  amountPaid       Decimal        @default(0) @db.Decimal(10, 2) // cached, recalculated from allocations
+  dueDate          DateTime       @db.Date
+  status           InvoiceStatus  @default(PENDING)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  allocations PaymentAllocation[]
+  adjustments Adjustment[]        @relation("InvoiceAdjustments")
+
+  @@unique([studentId, periodStart, periodEnd])
+  @@index([studentId, status])
+  @@index([dueDate])
+}
+
+model PaymentMethod {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  payments Payment[]
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  familyId         String
+  family           Family        @relation(fields: [familyId], references: [id])
+  amount           Decimal       @db.Decimal(10, 2)
+  date             DateTime      @default(now()) @db.Date
+  paymentMethodId  String
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  reference        String?
+  note             String?
+  recordedByUserId String
+  recordedBy       User          @relation("PaymentsRecorded", fields: [recordedByUserId], references: [id])
+  createdAt        DateTime      @default(now())
+
+  allocations PaymentAllocation[]
+
+  @@index([familyId])
+  @@index([date])
+}
+
+model PaymentAllocation {
+  id              String   @id @default(cuid())
+  paymentId       String
+  payment         Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  amountAllocated Decimal  @db.Decimal(10, 2)
+  createdAt       DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([paymentId])
+}
+
+enum AdjustmentScope {
+  STUDENT
+  FAMILY
+}
+
+enum AdjustmentType {
+  SIBLING_DISCOUNT
+  SCHOLARSHIP
+  CONCESSION
+  WAIVER
+  REFUND
+  CREDIT
+  MANUAL
+}
+
+model Adjustment {
+  id              String          @id @default(cuid())
+  scope           AdjustmentScope
+  studentId       String?
+  student         Student?        @relation("StudentAdjustments", fields: [studentId], references: [id])
+  familyId        String?
+  family          Family?         @relation("FamilyAdjustments", fields: [familyId], references: [id])
+  invoiceId       String?
+  invoice         Invoice?        @relation("InvoiceAdjustments", fields: [invoiceId], references: [id])
+  type            AdjustmentType
+  amount          Decimal?        @db.Decimal(10, 2) // fixed amount off
+  percent         Decimal?        @db.Decimal(5, 2) // or percent off
+  reason          String
+  isRecurring     Boolean         @default(false) // applies to every future invoice generated (e.g. standing sibling discount)
+  effectiveFrom   DateTime        @default(now()) @db.Date
+  effectiveTo     DateTime?       @db.Date
+  createdByUserId String
+  createdBy       User            @relation("AdjustmentsCreated", fields: [createdByUserId], references: [id])
+  createdAt       DateTime        @default(now())
+
+  @@index([studentId])
+  @@index([familyId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Notes / audit / terms
+// ─────────────────────────────────────────────────────────────────────────
+
+enum NoteEntityType {
+  STUDENT
+  FAMILY
+  TEACHER
+  CLASS
+}
+
+model Note {
+  id           String         @id @default(cuid())
+  entityType   NoteEntityType
+  entityId     String
+  text         String
+  authorUserId String
+  author       User           @relation("NotesAuthored", fields: [authorUserId], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  previousValue Json?
+  newValue      Json?
+  userId        String?
+  user          User?    @relation("AuditLogsMade", fields: [userId], references: [id])
+  timestamp     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
+
+model Term {
+  id        String   @id @default(cuid())
+  name      String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isActive  Boolean  @default(true)
+}
