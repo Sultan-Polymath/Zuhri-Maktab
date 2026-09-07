@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { nextStudentCode } from "@/lib/student-code";
 import { requireUser } from "./require-user";
 import { studentSchema } from "@/lib/validation/student";
 
@@ -27,49 +26,6 @@ function parseStudentForm(formData: FormData) {
     postcode: formData.get("postcode"),
     status: formData.get("status") || "ENQUIRY",
   });
-}
-
-export async function createStudent(
-  _prevState: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const user = await requireUser([...STAFF_ROLES]);
-
-  const parsed = parseStudentForm(formData);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Please check the form for errors." };
-  }
-  const { familyId, dob, status, ...rest } = parsed.data;
-
-  const family = await prisma.family.findUnique({ where: { id: familyId } });
-  if (!family) return { error: "Select a valid family." };
-
-  const student = await prisma.$transaction(async (tx) => {
-    const { seq, code } = await nextStudentCode(tx);
-    const student = await tx.student.create({
-      data: {
-        ...rest,
-        familyId,
-        dob: new Date(dob),
-        status,
-        studentSeq: seq,
-        studentCode: code,
-        dateEnrolled: status === "ACTIVE" ? new Date() : null,
-      },
-    });
-    await logAudit(tx, {
-      entityType: "Student",
-      entityId: student.id,
-      action: "created",
-      newValue: { ...rest, familyId, dob, status, studentCode: code },
-      userId: user.id,
-    });
-    return student;
-  });
-
-  revalidatePath("/students");
-  revalidatePath(`/families/${familyId}`);
-  redirect(`/students/${student.id}`);
 }
 
 export async function updateStudent(

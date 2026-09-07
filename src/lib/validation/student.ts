@@ -36,3 +36,9 @@ export const studentSchema = z.object({
 });
 
 export type StudentInput = z.infer<typeof studentSchema>;
+
+// Same as studentSchema but without familyId — used when enrolling one or
+// more children alongside a family in a single form.
+export const childSchema = studentSchema.omit({ familyId: true });
+
+export type ChildInput = z.infer<typeof childSchema>;

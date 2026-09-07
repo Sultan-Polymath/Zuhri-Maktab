@@ -61,20 +61,49 @@ export default async function StudentProfilePage({
 
   if (!student) notFound();
 
-  const [currentFeePlan, invoices, feePlans] = await Promise.all([
-    prisma.studentFeePlan.findFirst({
-      where: { studentId: student.id, endDate: null },
-      include: { feePlan: true },
-    }),
-    prisma.invoice.findMany({
-      where: { studentId: student.id },
-      orderBy: { periodStart: "desc" },
-    }),
-    prisma.feePlan.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+  const [currentFeePlan, invoices, feePlans, familyMembers, familyAdjustments] =
+    await Promise.all([
+      prisma.studentFeePlan.findFirst({
+        where: { studentId: student.id, endDate: null },
+        include: { feePlan: true },
+      }),
+      prisma.invoice.findMany({
+        where: { studentId: student.id },
+        orderBy: { periodStart: "desc" },
+      }),
+      prisma.feePlan.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.student.findMany({
+        where: { familyId: student.familyId },
+        include: {
+          feePlans: { where: { endDate: null }, include: { feePlan: true } },
+          invoices: true,
+        },
+        orderBy: { firstName: "asc" },
+      }),
+      prisma.adjustment.findMany({
+        where: {
+          scope: "FAMILY",
+          familyId: student.familyId,
+          isRecurring: true,
+          effectiveFrom: { lte: new Date() },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
+        },
+      }),
+    ]);
+
+  const siblings = familyMembers.filter((m) => m.id !== student.id);
+  const familyTotalDue = familyMembers.reduce(
+    (sum, m) => sum + m.invoices.reduce((s, i) => s + Number(i.amountDue), 0),
+    0,
+  );
+  const familyTotalPaid = familyMembers.reduce(
+    (sum, m) => sum + m.invoices.reduce((s, i) => s + Number(i.amountPaid), 0),
+    0,
+  );
+  const familyOutstanding = Math.max(0, familyTotalDue - familyTotalPaid);
 
   const feePlanOptions = feePlans.map((plan) => ({
     id: plan.id,
@@ -300,6 +329,76 @@ export default async function StudentProfilePage({
               )}
             </CardContent>
           </Card>
+
+          {siblings.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Family Fees</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                {familyAdjustments.length > 0 && (
+                  <div className="space-y-1">
+                    {familyAdjustments.map((adj) => (
+                      <p key={adj.id} className="text-muted-foreground">
+                        {adj.amount
+                          ? `${formatMoney(adj.amount)} off`
+                          : `${Number(adj.percent)}% off`}{" "}
+                        — {adj.reason}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1.5">
+                    <span className="font-medium">
+                      {student.preferredName || student.firstName} {student.lastName}{" "}
+                      <span className="text-xs text-muted-foreground">(this student)</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      {currentFeePlan
+                        ? formatMoney(currentFeePlan.customAmount ?? currentFeePlan.feePlan.amount)
+                        : "No plan"}
+                    </span>
+                  </div>
+                  {siblings.map((sibling) => {
+                    const plan = sibling.feePlans[0];
+                    return (
+                      <Link
+                        key={sibling.id}
+                        href={`/students/${sibling.id}`}
+                        className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-muted"
+                      >
+                        <span>
+                          {sibling.preferredName || sibling.firstName} {sibling.lastName}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {plan
+                            ? formatMoney(plan.customAmount ?? plan.feePlan.amount)
+                            : "No plan"}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3 border-t pt-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Family total due</p>
+                    <p className="font-semibold">{formatMoney(familyTotalDue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Family outstanding</p>
+                    <p className="font-semibold">{formatMoney(familyOutstanding)}</p>
+                  </div>
+                </div>
+                <Link
+                  href={`/families/${student.familyId}`}
+                  className="text-xs underline underline-offset-2"
+                >
+                  View family profile
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

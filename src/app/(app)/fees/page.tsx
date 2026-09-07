@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { InvoiceStatusBadge } from "@/components/fees/invoice-status-badge";
 import { GenerateInvoicesDialog } from "@/components/fees/generate-invoices-dialog";
+import { RecordPaymentJump } from "@/components/fees/record-payment-jump";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -43,12 +45,25 @@ export default async function FeesPage() {
     statusCounts.find((s) => s.status === status)?._count._all ?? 0;
   const overdueCount = outstandingInvoices.filter((inv) => isOverdue(inv.dueDate, now)).length;
 
+  const families = await prisma.family.findMany({
+    select: { id: true, surnameLabel: true },
+    orderBy: { surnameLabel: "asc" },
+  });
+
   return (
     <>
       <PageHeader
         title="Fees & Finance"
         description={`Overview for ${now.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}.`}
-        actions={<GenerateInvoicesDialog />}
+        actions={
+          <>
+            <Button variant="outline" nativeButton={false} render={<Link href="/fees/payments" />}>
+              View Payments
+            </Button>
+            <RecordPaymentJump families={families} />
+            <GenerateInvoicesDialog />
+          </>
+        }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -62,6 +77,7 @@ export default async function FeesPage() {
           value={formatMoney(collected)}
           sublabel={collectionRate === null ? undefined : `${collectionRate}% collection rate`}
           icon={CircleCheck}
+          href="/fees/payments"
         />
         <StatCard
           label="Outstanding this month"
