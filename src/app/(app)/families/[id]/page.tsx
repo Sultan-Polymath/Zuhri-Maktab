@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/card";
 import { GuardianDialog } from "@/components/families/guardian-dialog";
 import { DeleteGuardianButton } from "@/components/families/delete-guardian-button";
+import { AdjustmentDialog } from "@/components/fees/adjustment-dialog";
+import { formatMoney } from "@/lib/money";
+import { CreditCard } from "lucide-react";
 
 function formatAddress(entity: {
   addressLine1: string | null;
@@ -47,6 +50,15 @@ export default async function FamilyProfilePage({
   });
 
   if (!family) notFound();
+
+  const invoices = await prisma.invoice.findMany({
+    where: { student: { familyId: family.id } },
+    include: { student: true },
+    orderBy: { periodStart: "desc" },
+  });
+  const totalDue = invoices.reduce((sum, inv) => sum + Number(inv.amountDue), 0);
+  const totalPaid = invoices.reduce((sum, inv) => sum + Number(inv.amountPaid), 0);
+  const totalOutstanding = Math.max(0, totalDue - totalPaid);
 
   return (
     <>
@@ -150,12 +162,51 @@ export default async function FamilyProfilePage({
 
         <div className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Fees & Finance</CardTitle>
+              <AdjustmentDialog
+                scope="FAMILY"
+                entityId={family.id}
+                path={`/families/${family.id}`}
+              />
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Family billing and payment history will appear here once the
-              Fees & Finance module is built.
+            <CardContent className="space-y-4 text-sm">
+              {invoices.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No invoices yet. Assign a fee plan to a child, then generate
+                  invoices from Fees & Finance.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total due</p>
+                      <p className="font-semibold">{formatMoney(totalDue)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Paid</p>
+                      <p className="font-semibold">{formatMoney(totalPaid)}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground">Outstanding</p>
+                      <p className="text-lg font-semibold">
+                        {formatMoney(totalOutstanding)}
+                      </p>
+                    </div>
+                  </div>
+                  {totalOutstanding > 0 && (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      nativeButton={false}
+                      render={<Link href={`/families/${family.id}/pay`} />}
+                    >
+                      <CreditCard />
+                      Record Payment
+                    </Button>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

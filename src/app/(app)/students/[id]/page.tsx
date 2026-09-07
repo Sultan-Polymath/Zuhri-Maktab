@@ -9,6 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotesPanel } from "@/components/notes/notes-panel";
 import { AssignClassDialog } from "@/components/classes/assign-class-dialog";
+import { AssignFeePlanDialog } from "@/components/fees/assign-fee-plan-dialog";
+import { AdjustmentDialog } from "@/components/fees/adjustment-dialog";
+import { InvoiceAdjustmentDialog } from "@/components/fees/invoice-adjustment-dialog";
+import { InvoiceStatusBadge } from "@/components/fees/invoice-status-badge";
+import { formatMoney } from "@/lib/money";
 
 const STATUS_LABELS: Record<string, string> = {
   ENQUIRY: "Enquiry",
@@ -55,6 +60,27 @@ export default async function StudentProfilePage({
   ]);
 
   if (!student) notFound();
+
+  const [currentFeePlan, invoices, feePlans] = await Promise.all([
+    prisma.studentFeePlan.findFirst({
+      where: { studentId: student.id, endDate: null },
+      include: { feePlan: true },
+    }),
+    prisma.invoice.findMany({
+      where: { studentId: student.id },
+      orderBy: { periodStart: "desc" },
+    }),
+    prisma.feePlan.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const feePlanOptions = feePlans.map((plan) => ({
+    id: plan.id,
+    name: plan.name,
+    amount: Number(plan.amount).toFixed(2),
+  }));
 
   const attendanceRecords = await prisma.attendanceRecord.findMany({
     where: { studentId: student.id },
@@ -220,12 +246,58 @@ export default async function StudentProfilePage({
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Fees</CardTitle>
+              <div className="flex gap-2">
+                <AdjustmentDialog
+                  scope="STUDENT"
+                  entityId={student.id}
+                  path={`/students/${student.id}`}
+                />
+                <AssignFeePlanDialog
+                  studentId={student.id}
+                  feePlans={feePlanOptions}
+                  hasPlan={!!currentFeePlan}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Fee plan, invoices and payment history will appear here once
-              the Fees & Finance module is built.
+            <CardContent className="space-y-4 text-sm">
+              {currentFeePlan ? (
+                <p>
+                  <span className="font-medium">{currentFeePlan.feePlan.name}</span>
+                  <span className="ml-2 text-muted-foreground">
+                    {formatMoney(currentFeePlan.customAmount ?? currentFeePlan.feePlan.amount)}
+                    {currentFeePlan.customAmount && " (custom)"}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-muted-foreground">No fee plan assigned yet.</p>
+              )}
+
+              {invoices.length > 0 && (
+                <div className="space-y-1 border-t pt-3">
+                  {invoices.map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className="flex items-center justify-between gap-2 py-1"
+                    >
+                      <div>
+                        <span className="font-medium">{invoice.periodLabel}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {formatMoney(invoice.amountPaid)} / {formatMoney(invoice.amountDue)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <InvoiceStatusBadge status={invoice.status} dueDate={invoice.dueDate} />
+                        <InvoiceAdjustmentDialog
+                          invoiceId={invoice.id}
+                          path={`/students/${student.id}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
