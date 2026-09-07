@@ -8,18 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
-import type { NavItem } from "@/lib/nav";
+import { visibleNavItems } from "@/lib/nav";
+import type { UserRole } from "@prisma/client";
 
 export function AppShell({
-  items,
   user,
   children,
 }: {
-  items: NavItem[];
-  user: { name: string; email: string; role: string };
+  user: { name: string; email: string; role: UserRole };
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const items = visibleNavItems(user.role);
 
   return (
     <div className="flex min-h-svh w-full">
