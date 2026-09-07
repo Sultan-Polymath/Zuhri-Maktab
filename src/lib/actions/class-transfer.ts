@@ -37,10 +37,18 @@ export async function assignStudentToClass(
     return { error: `${toClass.name} is already at capacity (${toClass.capacity}/${toClass.capacity}).` };
   }
 
+  const promoteToActive = ["ENQUIRY", "APPLICATION", "WAITING_LIST"].includes(student.status);
+
   await prisma.$transaction(async (tx) => {
     await tx.student.update({
       where: { id: studentId },
-      data: { currentClassId: toClassId },
+      data: {
+        currentClassId: toClassId,
+        ...(promoteToActive && {
+          status: "ACTIVE",
+          dateEnrolled: student.dateEnrolled ?? new Date(),
+        }),
+      },
     });
     const transfer = await tx.classTransfer.create({
       data: {
@@ -55,8 +63,13 @@ export async function assignStudentToClass(
       entityType: "Student",
       entityId: studentId,
       action: "class_changed",
-      previousValue: { classId: student.currentClassId },
-      newValue: { classId: toClassId, transferId: transfer.id, reason },
+      previousValue: { classId: student.currentClassId, status: student.status },
+      newValue: {
+        classId: toClassId,
+        transferId: transfer.id,
+        reason,
+        status: promoteToActive ? "ACTIVE" : student.status,
+      },
       userId: user.id,
     });
   });

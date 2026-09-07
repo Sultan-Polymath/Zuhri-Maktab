@@ -6,6 +6,7 @@ import { updateStudent } from "@/lib/actions/students";
 import { Field, FormError } from "@/components/forms/field";
 import { NativeSelect } from "@/components/forms/native-select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -128,6 +129,23 @@ export function StudentEditForm({
           <Field label="Postcode" htmlFor="postcode">
             <Input id="postcode" name="postcode" defaultValue={student.postcode ?? ""} />
           </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Medical information</CardTitle>
+          <CardDescription>
+            Allergies, conditions, medications — anything staff should know.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            id="medicalInfo"
+            name="medicalInfo"
+            defaultValue={student.medicalInfo ?? ""}
+            className="min-h-24"
+          />
         </CardContent>
       </Card>
 

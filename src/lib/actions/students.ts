@@ -24,6 +24,7 @@ function parseStudentForm(formData: FormData) {
     addressLine2: formData.get("addressLine2"),
     city: formData.get("city"),
     postcode: formData.get("postcode"),
+    medicalInfo: formData.get("medicalInfo"),
     status: formData.get("status") || "ENQUIRY",
   });
 }

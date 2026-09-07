@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OccupancyBadge } from "@/components/classes/occupancy-badge";
 import { RemoveFromClassButton } from "@/components/classes/remove-from-class-button";
+import { CalendarDays } from "lucide-react";
 
 export default async function ClassProfilePage({
   params,
@@ -40,6 +41,10 @@ export default async function ClassProfilePage({
               <ClipboardCheck />
               Take Attendance
             </Button>
+            <Button variant="outline" nativeButton={false} render={<Link href={`/classes/${klass.id}/attendance`} />}>
+              <CalendarDays />
+              Monthly Attendance
+            </Button>
             <Button variant="outline" nativeButton={false} render={<Link href={`/classes/${klass.id}/edit`} />}>
               <Pencil />
               Edit
@@ -61,17 +66,20 @@ export default async function ClassProfilePage({
                   No students assigned to this class yet.
                 </p>
               )}
-              {klass.students.map((student) => (
+              {klass.students.map((student, index) => (
                 <div
                   key={student.id}
-                  className="-mx-2 flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted"
+                  className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted"
                 >
+                  <span className="w-5 shrink-0 text-right text-sm text-muted-foreground">
+                    {index + 1}.
+                  </span>
                   <Link href={`/students/${student.id}`} className="flex-1">
                     <span className="font-medium">
                       {student.preferredName || student.firstName} {student.lastName}
                     </span>
                     <span className="ml-2 text-sm text-muted-foreground">
-                      {calculateAge(student.dob)} yrs · {student.studentCode}
+                      {calculateAge(student.dob)} yrs
                     </span>
                   </Link>
                   <RemoveFromClassButton studentId={student.id} />

@@ -61,8 +61,15 @@ export default async function StudentProfilePage({
 
   if (!student) notFound();
 
-  const [currentFeePlan, invoices, feePlans, familyMembers, familyAdjustments] =
-    await Promise.all([
+  const [
+    currentFeePlan,
+    invoices,
+    feePlans,
+    familyMembers,
+    familyAdjustments,
+    attendanceRecords,
+    attendanceStatusGroups,
+  ] = await Promise.all([
       prisma.studentFeePlan.findFirst({
         where: { studentId: student.id, endDate: null },
         include: { feePlan: true },
@@ -92,6 +99,17 @@ export default async function StudentProfilePage({
           OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
         },
       }),
+      prisma.attendanceRecord.findMany({
+        where: { studentId: student.id },
+        include: { session: true },
+        orderBy: { session: { date: "desc" } },
+        take: 10,
+      }),
+      prisma.attendanceRecord.groupBy({
+        by: ["status"],
+        where: { studentId: student.id },
+        _count: { _all: true },
+      }),
     ]);
 
   const siblings = familyMembers.filter((m) => m.id !== student.id);
@@ -109,24 +127,19 @@ export default async function StudentProfilePage({
     id: plan.id,
     name: plan.name,
     amount: Number(plan.amount).toFixed(2),
+    frequency: plan.frequency,
   }));
 
-  const attendanceRecords = await prisma.attendanceRecord.findMany({
-    where: { studentId: student.id },
-    include: { session: true },
-    orderBy: { session: { date: "desc" } },
-    take: 10,
-  });
-  const allAttendanceStatuses = await prisma.attendanceRecord.findMany({
-    where: { studentId: student.id },
-    select: { status: true },
-  });
-  const attendedCount = allAttendanceStatuses.filter(
-    (r) => r.status === "PRESENT" || r.status === "LATE",
-  ).length;
+  const totalAttendanceRecords = attendanceStatusGroups.reduce(
+    (sum, g) => sum + g._count._all,
+    0,
+  );
+  const attendedCount = attendanceStatusGroups
+    .filter((g) => g.status === "PRESENT" || g.status === "LATE")
+    .reduce((sum, g) => sum + g._count._all, 0);
   const attendancePercent =
-    allAttendanceStatuses.length > 0
-      ? Math.round((attendedCount / allAttendanceStatuses.length) * 100)
+    totalAttendanceRecords > 0
+      ? Math.round((attendedCount / totalAttendanceRecords) * 100)
       : null;
 
   const classOptions = classes.map((klass) => ({
@@ -153,7 +166,7 @@ export default async function StudentProfilePage({
     <>
       <PageHeader
         title={displayName}
-        description={`${student.studentCode} · ${STATUS_LABELS[student.status]}`}
+        description={STATUS_LABELS[student.status]}
         actions={
           <Button variant="outline" nativeButton={false} render={<Link href={`/students/${student.id}/edit`} />}>
             <Pencil />
@@ -197,6 +210,12 @@ export default async function StudentProfilePage({
                 <p className="text-muted-foreground">Address</p>
                 <p className="font-medium">{address || "No address on file"}</p>
               </div>
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground">Medical information</p>
+                <p className="whitespace-pre-wrap font-medium">
+                  {student.medicalInfo || "None on file"}
+                </p>
+              </div>
               <div>
                 <p className="text-muted-foreground">Date enrolled</p>
                 <p className="font-medium">
@@ -220,6 +239,7 @@ export default async function StudentProfilePage({
               <AssignClassDialog
                 studentId={student.id}
                 currentClassId={student.currentClassId}
+                currentStatus={student.status}
                 classes={classOptions}
                 hasClass={!!student.currentClass}
               />

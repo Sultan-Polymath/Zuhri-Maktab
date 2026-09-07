@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatAuditEntry } from "@/lib/audit-format";
+import { formatMoney } from "@/lib/money";
+import { isOverdue } from "@/lib/invoice-overdue";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { AlertItem } from "@/components/dashboard/alert-item";
@@ -11,6 +13,7 @@ import {
   ClipboardCheck,
   Clock,
   CheckCircle2,
+  PoundSterling,
 } from "lucide-react";
 
 function todayIsoDate() {
@@ -30,7 +33,10 @@ export default async function DashboardPage() {
   const session = await auth();
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";
 
-  const [statusCounts, classes, allAttendanceRecords, recentActivity] =
+  const now = new Date();
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  const [statusCounts, classes, allAttendanceRecords, recentActivity, unpaidInvoices] =
     await Promise.all([
       prisma.student.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.class.findMany({
@@ -38,7 +44,10 @@ export default async function DashboardPage() {
         include: { _count: { select: { students: true } } },
         orderBy: { name: "asc" },
       }),
+      // Only the last 60 days: enough to judge "today" and a recent
+      // attendance trend, without scanning the whole history as it grows.
       prisma.attendanceRecord.findMany({
+        where: { session: { date: { gte: sixtyDaysAgo } } },
         select: { studentId: true, status: true, session: { select: { date: true } } },
       }),
       prisma.auditLog.findMany({
@@ -46,7 +55,19 @@ export default async function DashboardPage() {
         take: 8,
         include: { user: true },
       }),
+      prisma.invoice.findMany({
+        where: { status: { in: ["PENDING", "PARTIALLY_PAID"] } },
+        select: { amountDue: true, amountPaid: true, dueDate: true, studentId: true },
+      }),
     ]);
+
+  const totalOutstanding = unpaidInvoices.reduce(
+    (sum, inv) => sum + (Number(inv.amountDue) - Number(inv.amountPaid)),
+    0,
+  );
+  const overdueStudentIds = new Set(
+    unpaidInvoices.filter((inv) => isOverdue(inv.dueDate)).map((inv) => inv.studentId),
+  );
 
   const countFor = (status: string) =>
     statusCounts.find((s) => s.status === status)?._count._all ?? 0;
@@ -100,7 +121,8 @@ export default async function DashboardPage() {
     fullClasses.length > 0 ||
     nearFullClasses.length > 0 ||
     lowAttendanceStudents.length > 0 ||
-    applications > 0;
+    applications > 0 ||
+    overdueStudentIds.size > 0;
 
   return (
     <>
@@ -109,7 +131,7 @@ export default async function DashboardPage() {
         description="Here's what's happening at the Maktab."
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="Active Students"
           value={activeStudents}
@@ -137,6 +159,17 @@ export default async function DashboardPage() {
           sublabel="awaiting review"
           icon={Clock}
           href="/students?status=APPLICATION"
+        />
+        <StatCard
+          label="Fees Outstanding"
+          value={formatMoney(totalOutstanding)}
+          sublabel={
+            overdueStudentIds.size > 0
+              ? `${overdueStudentIds.size} student${overdueStudentIds.size === 1 ? "" : "s"} overdue`
+              : "none overdue"
+          }
+          icon={PoundSterling}
+          href="/fees"
         />
       </div>
 
@@ -176,6 +209,13 @@ export default async function DashboardPage() {
               <AlertItem href="/students?status=APPLICATION">
                 {applications} new enrolment application
                 {applications === 1 ? "" : "s"} awaiting review
+              </AlertItem>
+            )}
+            {overdueStudentIds.size > 0 && (
+              <AlertItem href="/fees">
+                {overdueStudentIds.size} student
+                {overdueStudentIds.size === 1 ? " has" : "s have"} overdue fees (
+                {formatMoney(totalOutstanding)} outstanding)
               </AlertItem>
             )}
           </CardContent>

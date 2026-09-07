@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { nextStudentCode } from "@/lib/student-code";
+import { recalcInvoice } from "@/lib/invoice-calc";
 import { requireUser } from "./require-user";
 import { familySchema, guardianSchema } from "@/lib/validation/family";
 import { childSchema } from "@/lib/validation/student";
@@ -132,10 +133,36 @@ export async function enrolFamily(
       });
       ids.push(student.id);
 
-      if (feePlanId) {
-        await tx.studentFeePlan.create({
+      if (feePlanId && feePlan) {
+        const assignment = await tx.studentFeePlan.create({
           data: { studentId: student.id, feePlanId, customAmount },
         });
+
+        // Seed the first invoice for the current month so the balance owed
+        // and due date show up immediately. For termly/annual plans this is
+        // just a starting point — adjust the period from the student's Fees
+        // card afterwards if needed.
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const periodStart = new Date(Date.UTC(y, m, 1));
+        const periodEnd = new Date(Date.UTC(y, m + 1, 0));
+        const dueDate = new Date(Date.UTC(y, m, 7));
+        const grossAmount = customAmount ?? feePlan.amount;
+
+        const invoice = await tx.invoice.create({
+          data: {
+            studentId: student.id,
+            studentFeePlanId: assignment.id,
+            periodLabel: now.toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
+            periodStart,
+            periodEnd,
+            grossAmount,
+            amountDue: grossAmount,
+            dueDate,
+          },
+        });
+        await recalcInvoice(tx, invoice.id);
       }
 
       await logAudit(tx, {

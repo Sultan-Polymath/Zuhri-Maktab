@@ -32,6 +32,7 @@ export const studentSchema = z.object({
   addressLine2: optionalText,
   city: optionalText,
   postcode: optionalText,
+  medicalInfo: optionalText,
   status: z.enum(studentStatusOptions).default("ENQUIRY"),
 });
 

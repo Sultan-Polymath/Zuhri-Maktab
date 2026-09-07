@@ -116,6 +116,7 @@ model Student {
   addressLine2   String?
   city           String?
   postcode       String?
+  medicalInfo    String? // allergies, conditions, medications — free text
   dateEnrolled   DateTime?     @db.Date
   status         StudentStatus @default(ENQUIRY)
   currentClassId String?

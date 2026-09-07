@@ -27,14 +27,17 @@ type ClassOption = {
 export function AssignClassDialog({
   studentId,
   currentClassId,
+  currentStatus,
   classes,
   hasClass,
 }: {
   studentId: string;
   currentClassId?: string | null;
+  currentStatus: string;
   classes: ClassOption[];
   hasClass: boolean;
 }) {
+  const willActivate = ["ENQUIRY", "APPLICATION", "WAITING_LIST"].includes(currentStatus);
   const [open, setOpen] = useState(false);
   const formId = useId();
   const action = assignStudentToClass.bind(null, studentId);
@@ -56,6 +59,7 @@ export function AssignClassDialog({
           <DialogTitle>{hasClass ? "Change Class" : "Assign to Class"}</DialogTitle>
           <DialogDescription>
             This is recorded in the student&apos;s class transfer history.
+            {willActivate && " This will also set their status to Active."}
           </DialogDescription>
         </DialogHeader>
         <form id={formId} action={formAction} className="space-y-4">
