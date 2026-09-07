@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/lib/age";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotesPanel } from "@/components/notes/notes-panel";
+import { AssignClassDialog } from "@/components/classes/assign-class-dialog";
 
 const STATUS_LABELS: Record<string, string> = {
   ENQUIRY: "Enquiry",
@@ -33,15 +35,51 @@ export default async function StudentProfilePage({
 }) {
   const { id } = await params;
 
-  const student = await prisma.student.findUnique({
-    where: { id },
-    include: {
-      family: { include: { guardians: true } },
-      currentClass: { include: { primaryTeacher: true } },
-    },
-  });
+  const [student, classes] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id },
+      include: {
+        family: { include: { guardians: true } },
+        currentClass: { include: { primaryTeacher: true } },
+        classTransfers: {
+          include: { fromClass: true, toClass: true, changedBy: true },
+          orderBy: { transferDate: "desc" },
+        },
+      },
+    }),
+    prisma.class.findMany({
+      where: { status: "ACTIVE" },
+      include: { _count: { select: { students: true } } },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   if (!student) notFound();
+
+  const attendanceRecords = await prisma.attendanceRecord.findMany({
+    where: { studentId: student.id },
+    include: { session: true },
+    orderBy: { session: { date: "desc" } },
+    take: 10,
+  });
+  const allAttendanceStatuses = await prisma.attendanceRecord.findMany({
+    where: { studentId: student.id },
+    select: { status: true },
+  });
+  const attendedCount = allAttendanceStatuses.filter(
+    (r) => r.status === "PRESENT" || r.status === "LATE",
+  ).length;
+  const attendancePercent =
+    allAttendanceStatuses.length > 0
+      ? Math.round((attendedCount / allAttendanceStatuses.length) * 100)
+      : null;
+
+  const classOptions = classes.map((klass) => ({
+    id: klass.id,
+    name: klass.name,
+    studentCount: klass._count.students,
+    capacity: klass.capacity,
+  }));
 
   const displayName = `${student.preferredName || student.firstName} ${student.lastName}`;
   const primaryGuardian =
@@ -122,17 +160,52 @@ export default async function StudentProfilePage({
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Class</CardTitle>
+              <AssignClassDialog
+                studentId={student.id}
+                currentClassId={student.currentClassId}
+                classes={classOptions}
+                hasClass={!!student.currentClass}
+              />
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              {student.currentClass
-                ? `${student.currentClass.name}${
-                    student.currentClass.primaryTeacher
-                      ? ` · ${student.currentClass.primaryTeacher.name}`
-                      : ""
-                  }`
-                : "Not assigned to a class yet — class assignment and transfer history will be available once the Classes module is built."}
+            <CardContent className="space-y-4 text-sm">
+              {student.currentClass ? (
+                <p>
+                  <Link
+                    href={`/classes/${student.currentClass.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {student.currentClass.name}
+                  </Link>
+                  {student.currentClass.primaryTeacher && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {student.currentClass.primaryTeacher.name}
+                    </span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">Not assigned to a class yet.</p>
+              )}
+
+              {student.classTransfers.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Transfer history
+                  </p>
+                  {student.classTransfers.map((transfer) => (
+                    <div key={transfer.id} className="text-xs text-muted-foreground">
+                      {formatDate(transfer.transferDate)}:{" "}
+                      {transfer.fromClass ? transfer.fromClass.name : "(none)"} →{" "}
+                      {transfer.toClass.name}
+                      {transfer.reason && ` — ${transfer.reason}`}
+                      {" · "}
+                      {transfer.changedBy.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -200,9 +273,30 @@ export default async function StudentProfilePage({
             <CardHeader>
               <CardTitle className="text-base">Attendance</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Attendance history will appear here once the Attendance module
-              is built.
+            <CardContent className="space-y-3 text-sm">
+              {attendancePercent === null ? (
+                <p className="text-muted-foreground">No attendance recorded yet.</p>
+              ) : (
+                <>
+                  <p>
+                    <span className="text-2xl font-semibold">{attendancePercent}%</span>
+                    <span className="ml-1 text-muted-foreground">attendance</span>
+                  </p>
+                  <div className="space-y-1">
+                    {attendanceRecords.map((record) => (
+                      <div
+                        key={record.id}
+                        className="flex items-center justify-between text-xs text-muted-foreground"
+                      >
+                        <span>{formatDate(record.session.date)}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {record.status.charAt(0) + record.status.slice(1).toLowerCase()}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
