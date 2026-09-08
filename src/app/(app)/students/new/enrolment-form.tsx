@@ -7,6 +7,7 @@ import { enrolFamily } from "@/lib/actions/enrol";
 import { Field, FormError } from "@/components/forms/field";
 import { NativeSelect } from "@/components/forms/native-select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,16 @@ function ChildFields({
             <option value="ACTIVE">Active</option>
           </NativeSelect>
         </Field>
+        <div className="sm:col-span-2">
+          <Field label="Medical / learning information (optional)" htmlFor={`${p}medicalInfo`}>
+            <Textarea
+              id={`${p}medicalInfo`}
+              name={`${p}medicalInfo`}
+              placeholder="Allergies, conditions, medications, SEN/learning needs…"
+              className="min-h-16"
+            />
+          </Field>
+        </div>
       </div>
     </div>
   );

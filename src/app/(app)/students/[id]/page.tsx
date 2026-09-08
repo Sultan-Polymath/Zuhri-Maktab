@@ -211,7 +211,7 @@ export default async function StudentProfilePage({
                 <p className="font-medium">{address || "No address on file"}</p>
               </div>
               <div className="sm:col-span-2">
-                <p className="text-muted-foreground">Medical information</p>
+                <p className="text-muted-foreground">Medical / learning information</p>
                 <p className="whitespace-pre-wrap font-medium">
                   {student.medicalInfo || "None on file"}
                 </p>

@@ -134,9 +134,10 @@ export function StudentEditForm({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Medical information</CardTitle>
+          <CardTitle className="text-base">Medical / learning information</CardTitle>
           <CardDescription>
-            Allergies, conditions, medications — anything staff should know.
+            Allergies, conditions, medications, SEN/learning needs — anything
+            staff should know.
           </CardDescription>
         </CardHeader>
         <CardContent>

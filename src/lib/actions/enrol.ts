@@ -22,6 +22,7 @@ function parseChild(formData: FormData, key: string) {
     preferredName: formData.get(`child_${key}_preferredName`),
     dob: formData.get(`child_${key}_dob`),
     gender: formData.get(`child_${key}_gender`),
+    medicalInfo: formData.get(`child_${key}_medicalInfo`),
     status: formData.get(`child_${key}_status`) || "ENQUIRY",
   });
 }

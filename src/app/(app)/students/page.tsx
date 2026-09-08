@@ -54,7 +54,11 @@ export default async function StudentsPage({
       ],
     },
     include: { family: true, currentClass: true },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    orderBy: [
+      { currentClass: { name: "asc" } },
+      { lastName: "asc" },
+      { firstName: "asc" },
+    ],
     take: 200,
   });
 
@@ -105,7 +109,7 @@ export default async function StudentsPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Student</TableHead>
-                <TableHead>ID</TableHead>
+                <TableHead>Medical / Learning Info</TableHead>
                 <TableHead>Age</TableHead>
                 <TableHead>Family</TableHead>
                 <TableHead>Class</TableHead>
@@ -130,8 +134,11 @@ export default async function StudentsPage({
                       {student.preferredName || student.firstName} {student.lastName}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {student.studentCode}
+                  <TableCell
+                    className="max-w-48 truncate text-muted-foreground"
+                    title={student.medicalInfo ?? undefined}
+                  >
+                    {student.medicalInfo || "—"}
                   </TableCell>
                   <TableCell>{calculateAge(student.dob)}</TableCell>
                   <TableCell>
