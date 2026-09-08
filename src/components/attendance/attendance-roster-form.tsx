@@ -57,7 +57,7 @@ export function AttendanceRosterForm({
       </div>
       {students.length > 0 && (
         <div className="flex justify-end">
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="h-11 w-full sm:h-8 sm:w-auto">
             {isPending ? "Saving…" : "Save attendance"}
           </Button>
         </div>

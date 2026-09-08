@@ -37,15 +37,30 @@ export default async function ClassProfilePage({
         description={`${formatDays(klass.days)} · ${formatTimeRange(klass.startTime, klass.endTime)}${klass.room ? ` · ${klass.room}` : ""}`}
         actions={
           <>
-            <Button variant="outline" nativeButton={false} render={<Link href={`/attendance?classId=${klass.id}`} />}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/attendance?classId=${klass.id}`} />}
+              className="h-11 sm:h-8"
+            >
               <ClipboardCheck />
               Take Attendance
             </Button>
-            <Button variant="outline" nativeButton={false} render={<Link href={`/classes/${klass.id}/attendance`} />}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/classes/${klass.id}/attendance`} />}
+              className="h-11 sm:h-8"
+            >
               <CalendarDays />
               Monthly Attendance
             </Button>
-            <Button variant="outline" nativeButton={false} render={<Link href={`/classes/${klass.id}/edit`} />}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/classes/${klass.id}/edit`} />}
+              className="h-11 sm:h-8"
+            >
               <Pencil />
               Edit
             </Button>

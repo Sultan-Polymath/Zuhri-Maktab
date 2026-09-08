@@ -61,11 +61,17 @@ export default async function AttendancePage({
       />
 
       <form method="get" className="mb-6 flex flex-wrap items-end gap-3">
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <label className="mb-2 block text-sm font-medium" htmlFor="classId">
             Class
           </label>
-          <NativeSelect id="classId" name="classId" defaultValue={classId ?? ""} required>
+          <NativeSelect
+            id="classId"
+            name="classId"
+            defaultValue={classId ?? ""}
+            required
+            className="h-11 sm:h-8"
+          >
             <option value="" disabled>
               Select a class…
             </option>
@@ -76,13 +82,13 @@ export default async function AttendancePage({
             ))}
           </NativeSelect>
         </div>
-        <div className="w-44">
+        <div className="w-[calc(50%-0.375rem)] sm:w-44">
           <label className="mb-2 block text-sm font-medium" htmlFor="date">
             Date
           </label>
-          <Input id="date" name="date" type="date" defaultValue={date} />
+          <Input id="date" name="date" type="date" defaultValue={date} className="h-11 sm:h-8" />
         </div>
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="outline" className="h-11 sm:h-8">
           Go
         </Button>
       </form>

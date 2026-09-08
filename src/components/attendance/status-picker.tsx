@@ -35,12 +35,12 @@ export function StatusPicker({
   const name = `status-${studentId}`;
 
   return (
-    <div className="inline-flex rounded-lg border p-0.5">
+    <div className="grid w-full grid-cols-4 gap-1 rounded-lg border p-1 sm:w-auto">
       {OPTIONS.map((option) => (
         <label
           key={option.value}
           className={cn(
-            "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors has-checked:shadow-sm",
+            "flex min-h-11 min-w-16 cursor-pointer items-center justify-center rounded-md px-2 py-2.5 text-center text-sm font-medium text-muted-foreground transition-colors has-checked:shadow-sm",
             option.activeClass,
           )}
         >
