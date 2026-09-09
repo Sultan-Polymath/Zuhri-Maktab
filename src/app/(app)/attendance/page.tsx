@@ -19,20 +19,23 @@ export default async function AttendancePage({
   const date = params.date ?? todayIsoDate();
   const classId = params.classId;
 
-  const classes = await prisma.class.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { name: "asc" },
-  });
+  const [classes, klass] = await Promise.all([
+    prisma.class.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { name: "asc" },
+    }),
+    classId
+      ? prisma.class.findUnique({
+          where: { id: classId },
+          include: { students: { orderBy: [{ lastName: "asc" }, { firstName: "asc" }] } },
+        })
+      : null,
+  ]);
 
   let students: { id: string; name: string; dob: Date; status: string }[] = [];
   let selectedClassName: string | null = null;
 
   if (classId) {
-    const klass = await prisma.class.findUnique({
-      where: { id: classId },
-      include: { students: { orderBy: [{ lastName: "asc" }, { firstName: "asc" }] } },
-    });
-
     if (klass) {
       selectedClassName = klass.name;
       const sessionDate = new Date(`${date}T00:00:00.000Z`);
