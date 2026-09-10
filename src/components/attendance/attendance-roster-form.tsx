@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 type StudentRow = {
   id: string;
   name: string;
-  dob: Date;
+  dob: Date | null;
   status: string;
 };
 
@@ -35,7 +35,9 @@ export function AttendanceRosterForm({
         </p>
       )}
       <div className="divide-y rounded-lg border">
-        {students.map((student) => (
+        {students.map((student) => {
+          const age = calculateAge(student.dob);
+          return (
           <div
             key={student.id}
             className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
@@ -43,12 +45,13 @@ export function AttendanceRosterForm({
             <div>
               <span className="font-medium">{student.name}</span>
               <span className="ml-2 text-sm text-muted-foreground">
-                {calculateAge(student.dob)} yrs
+                {age !== null ? `${age} yrs` : "age unknown"}
               </span>
             </div>
             <StatusPicker studentId={student.id} defaultValue={student.status} />
           </div>
-        ))}
+          );
+        })}
         {students.length === 0 && (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             No students assigned to this class yet.

@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   const now = new Date();
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  const [statusCounts, classes, allAttendanceRecords, recentActivity, unpaidInvoices] =
+  const [statusCounts, classes, allAttendanceRecords, recentActivity, unpaidInvoices, missingInfoCount] =
     await Promise.all([
       prisma.student.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.class.findMany({
@@ -59,6 +59,7 @@ export default async function DashboardPage() {
         where: { status: { in: ["PENDING", "PARTIALLY_PAID"] } },
         select: { amountDue: true, amountPaid: true, dueDate: true, studentId: true },
       }),
+      prisma.student.count({ where: { OR: [{ dob: null }, { gender: null }] } }),
     ]);
 
   const totalOutstanding = unpaidInvoices.reduce(
@@ -122,7 +123,8 @@ export default async function DashboardPage() {
     nearFullClasses.length > 0 ||
     lowAttendanceStudents.length > 0 ||
     applications > 0 ||
-    overdueStudentIds.size > 0;
+    overdueStudentIds.size > 0 ||
+    missingInfoCount > 0;
 
   return (
     <>
@@ -216,6 +218,12 @@ export default async function DashboardPage() {
                 {overdueStudentIds.size} student
                 {overdueStudentIds.size === 1 ? " has" : "s have"} overdue fees (
                 {formatMoney(totalOutstanding)} outstanding)
+              </AlertItem>
+            )}
+            {missingInfoCount > 0 && (
+              <AlertItem href="/students?missing=1">
+                {missingInfoCount} student{missingInfoCount === 1 ? "" : "s"} imported without a
+                date of birth or gender on file — needs completing
               </AlertItem>
             )}
           </CardContent>

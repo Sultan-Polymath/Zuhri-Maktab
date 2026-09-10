@@ -42,3 +42,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# raw legacy student data (contains real PII) — never commit
+/.import-data/

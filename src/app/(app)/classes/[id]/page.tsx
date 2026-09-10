@@ -81,7 +81,9 @@ export default async function ClassProfilePage({
                   No students assigned to this class yet.
                 </p>
               )}
-              {klass.students.map((student, index) => (
+              {klass.students.map((student, index) => {
+                const age = calculateAge(student.dob);
+                return (
                 <div
                   key={student.id}
                   className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted"
@@ -94,12 +96,13 @@ export default async function ClassProfilePage({
                       {student.preferredName || student.firstName} {student.lastName}
                     </span>
                     <span className="ml-2 text-sm text-muted-foreground">
-                      {calculateAge(student.dob)} yrs
+                      {age !== null ? `${age} yrs` : "age unknown"}
                     </span>
                   </Link>
                   <RemoveFromClassButton studentId={student.id} />
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </div>

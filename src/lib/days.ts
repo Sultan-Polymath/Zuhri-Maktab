@@ -14,5 +14,6 @@ export function formatDays(days: string[]): string {
 }
 
 export function formatTimeRange(startTime: string, endTime: string): string {
+  if (!startTime && !endTime) return "Time not set";
   return `${startTime}–${endTime}`;
 }

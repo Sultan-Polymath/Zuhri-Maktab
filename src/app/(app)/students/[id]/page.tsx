@@ -197,13 +197,19 @@ export default async function StudentProfilePage({
               <div>
                 <p className="text-muted-foreground">Date of birth</p>
                 <p className="font-medium">
-                  {formatDate(student.dob)} ({calculateAge(student.dob)} years old)
+                  {student.dob
+                    ? `${formatDate(student.dob)} (${calculateAge(student.dob)} years old)`
+                    : "Not on file"}
                 </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Gender</p>
                 <p className="font-medium">
-                  {student.gender === "MALE" ? "Male" : "Female"}
+                  {student.gender === "MALE"
+                    ? "Male"
+                    : student.gender === "FEMALE"
+                      ? "Female"
+                      : "Not set"}
                 </p>
               </div>
               <div className="sm:col-span-2">

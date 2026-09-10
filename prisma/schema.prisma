@@ -110,8 +110,8 @@ model Student {
   middleName     String?
   lastName       String
   preferredName  String?
-  dob            DateTime      @db.Date
-  gender         Gender
+  dob            DateTime?     @db.Date
+  gender         Gender?
   addressLine1   String? // optional override; UI falls back to family address
   addressLine2   String?
   city           String?

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, TriangleAlert } from "lucide-react";
 import type { Gender, StudentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/lib/age";
@@ -31,36 +31,40 @@ const STATUS_LABELS: Record<StudentStatus, string> = {
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; gender?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; gender?: string; missing?: string }>;
 }) {
-  const { q, status, gender } = await searchParams;
+  const { q, status, gender, missing } = await searchParams;
 
-  const students = await prisma.student.findMany({
-    where: {
-      AND: [
-        q
-          ? {
-              OR: [
-                { firstName: { contains: q, mode: "insensitive" } },
-                { lastName: { contains: q, mode: "insensitive" } },
-                { preferredName: { contains: q, mode: "insensitive" } },
-                { studentCode: { contains: q, mode: "insensitive" } },
-                { family: { surnameLabel: { contains: q, mode: "insensitive" } } },
-              ],
-            }
-          : {},
-        status ? { status: status as StudentStatus } : {},
-        gender ? { gender: gender as Gender } : {},
+  const [students, missingInfoCount] = await Promise.all([
+    prisma.student.findMany({
+      where: {
+        AND: [
+          q
+            ? {
+                OR: [
+                  { firstName: { contains: q, mode: "insensitive" } },
+                  { lastName: { contains: q, mode: "insensitive" } },
+                  { preferredName: { contains: q, mode: "insensitive" } },
+                  { studentCode: { contains: q, mode: "insensitive" } },
+                  { family: { surnameLabel: { contains: q, mode: "insensitive" } } },
+                ],
+              }
+            : {},
+          status ? { status: status as StudentStatus } : {},
+          gender ? { gender: gender as Gender } : {},
+          missing === "1" ? { OR: [{ dob: null }, { gender: null }] } : {},
+        ],
+      },
+      include: { family: true, currentClass: true },
+      orderBy: [
+        { currentClass: { name: "asc" } },
+        { lastName: "asc" },
+        { firstName: "asc" },
       ],
-    },
-    include: { family: true, currentClass: true },
-    orderBy: [
-      { currentClass: { name: "asc" } },
-      { lastName: "asc" },
-      { firstName: "asc" },
-    ],
-    take: 200,
-  });
+      take: 200,
+    }),
+    prisma.student.count({ where: { OR: [{ dob: null }, { gender: null }] } }),
+  ]);
 
   return (
     <>
@@ -75,7 +79,19 @@ export default async function StudentsPage({
         }
       />
 
+      {missingInfoCount > 0 && missing !== "1" && (
+        <Link
+          href="/students?missing=1"
+          className="mb-4 flex items-center gap-2 rounded-md border border-amber-600/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 hover:bg-amber-500/15 dark:text-amber-500"
+        >
+          <TriangleAlert className="size-4 shrink-0" />
+          {missingInfoCount} student{missingInfoCount === 1 ? "" : "s"} imported without a date
+          of birth or gender on file — click to review and complete them.
+        </Link>
+      )}
+
       <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
+        {missing === "1" && <input type="hidden" name="missing" value="1" />}
         <div className="relative w-full max-w-sm">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -140,7 +156,7 @@ export default async function StudentsPage({
                   >
                     {student.medicalInfo || "—"}
                   </TableCell>
-                  <TableCell>{calculateAge(student.dob)}</TableCell>
+                  <TableCell>{calculateAge(student.dob) ?? "—"}</TableCell>
                   <TableCell>
                     <Link
                       href={`/families/${student.familyId}`}

@@ -18,8 +18,8 @@ import {
 
 type FamilyOption = { id: string; surnameLabel: string };
 
-function toDateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+function toDateInputValue(date: Date | null) {
+  return date ? date.toISOString().slice(0, 10) : "";
 }
 
 export function StudentEditForm({
@@ -89,7 +89,10 @@ export function StudentEditForm({
             />
           </Field>
           <Field label="Gender" htmlFor="gender" required>
-            <NativeSelect id="gender" name="gender" defaultValue={student.gender} required>
+            <NativeSelect id="gender" name="gender" defaultValue={student.gender ?? ""} required>
+              <option value="" disabled>
+                Select…
+              </option>
               <option value="MALE">Male</option>
               <option value="FEMALE">Female</option>
             </NativeSelect>

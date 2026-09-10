@@ -150,7 +150,10 @@ export default async function FamilyProfilePage({
                       {student.preferredName || student.firstName} {student.lastName}
                     </span>
                     <span className="ml-2 text-sm text-muted-foreground">
-                      {calculateAge(student.dob)} yrs · {student.studentCode}
+                      {calculateAge(student.dob) !== null
+                        ? `${calculateAge(student.dob)} yrs · `
+                        : ""}
+                      {student.studentCode}
                     </span>
                   </div>
                   <Badge variant="outline">{student.status.replace("_", " ")}</Badge>

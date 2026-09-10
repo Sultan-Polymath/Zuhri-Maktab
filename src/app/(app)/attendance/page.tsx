@@ -32,7 +32,7 @@ export default async function AttendancePage({
       : null,
   ]);
 
-  let students: { id: string; name: string; dob: Date; status: string }[] = [];
+  let students: { id: string; name: string; dob: Date | null; status: string }[] = [];
   let selectedClassName: string | null = null;
 
   if (classId) {
