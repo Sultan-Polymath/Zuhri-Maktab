@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/page-header";
 import { TeacherForm } from "@/components/teachers/teacher-form";
+import { TeacherPinLoginCard } from "@/components/teachers/teacher-pin-login-card";
 
 export default async function EditTeacherPage({
   params,
@@ -13,9 +14,10 @@ export default async function EditTeacherPage({
   if (!teacher) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader title={`Edit ${teacher.name}`} />
       <TeacherForm teacher={teacher} />
+      <TeacherPinLoginCard teacherId={teacher.id} hasLogin={!!teacher.userId} />
     </div>
   );
 }

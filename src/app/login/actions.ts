@@ -25,3 +25,27 @@ export async function authenticate(
     throw error;
   }
 }
+
+export async function authenticateWithPin(
+  userId: string,
+  _prevState: string | undefined,
+  formData: FormData,
+): Promise<string | undefined> {
+  try {
+    await signIn("pin", {
+      userId,
+      pin: formData.get("pin"),
+      redirectTo: "/",
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return "Incorrect PIN, or too many attempts — try again in a few minutes.";
+        default:
+          return "Something went wrong. Please try again.";
+      }
+    }
+    throw error;
+  }
+}

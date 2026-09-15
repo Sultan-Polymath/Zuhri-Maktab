@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatAuditEntry } from "@/lib/audit-format";
@@ -32,6 +33,22 @@ function formatDateTime(date: Date) {
 export default async function DashboardPage() {
   const session = await auth();
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";
+
+  if (session?.user?.role === "TEACHER") {
+    const teacher = await prisma.teacher.findUnique({
+      where: { userId: session.user.id },
+      include: { primaryClasses: true, assistantOf: { include: { class: true } } },
+    });
+    if (teacher) {
+      const classIds = new Set([
+        ...teacher.primaryClasses.map((c) => c.id),
+        ...teacher.assistantOf.map((a) => a.class.id),
+      ]);
+      if (classIds.size === 1) {
+        redirect(`/attendance?classId=${[...classIds][0]}`);
+      }
+    }
+  }
 
   const now = new Date();
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
