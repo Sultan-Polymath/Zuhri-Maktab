@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { Class, Teacher } from "@prisma/client";
 import { formatDays, formatTimeRange } from "@/lib/days";
+import { isGirlsClass } from "@/lib/class-gender";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +19,6 @@ import {
 } from "@/components/ui/table";
 
 type ClassRow = Class & { primaryTeacher: Teacher | null; _count: { students: number } };
-
-// This maktab names classes after their teacher ("Ustaad"/"Ustadh" for men,
-// "Ustadah"/"Ustadha" for women) and runs boys' and girls' classes
-// separately — group the list the same way staff already think about it.
-function isGirlsClass(name: string) {
-  return /ustadah|ustadha|\bgirls?\b/i.test(name);
-}
 
 function ClassTable({ classes }: { classes: ClassRow[] }) {
   return (
