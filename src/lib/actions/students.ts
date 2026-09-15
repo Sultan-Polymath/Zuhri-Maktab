@@ -29,6 +29,41 @@ function parseStudentForm(formData: FormData) {
   });
 }
 
+const DELETE_ROLES = ["SUPER_ADMIN", "ADMIN"] as const;
+
+export async function deleteStudent(studentId: string): Promise<void> {
+  const user = await requireUser([...DELETE_ROLES]);
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    include: {
+      _count: { select: { attendanceRecords: true, invoices: true, progressEntries: true } },
+    },
+  });
+  if (!student) return;
+
+  const { attendanceRecords, invoices, progressEntries } = student._count;
+  if (attendanceRecords > 0 || invoices > 0 || progressEntries > 0) {
+    throw new Error(
+      "This student has attendance, fee, or progress history and can't be deleted. Set their status to Left instead.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.student.delete({ where: { id: studentId } });
+    await logAudit(tx, {
+      entityType: "Student",
+      entityId: studentId,
+      action: "deleted",
+      previousValue: student,
+      userId: user.id,
+    });
+  });
+
+  revalidatePath("/students");
+  revalidatePath(`/families/${student.familyId}`);
+}
+
 export async function updateStudent(
   studentId: string,
   _prevState: ActionState,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Pencil, ClipboardCheck } from "lucide-react";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/lib/age";
 import { formatDays, formatTimeRange } from "@/lib/days";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OccupancyBadge } from "@/components/classes/occupancy-badge";
 import { RemoveFromClassButton } from "@/components/classes/remove-from-class-button";
+import { DeleteClassButton } from "@/components/classes/delete-class-button";
 import { CalendarDays } from "lucide-react";
 
 export default async function ClassProfilePage({
@@ -29,6 +31,9 @@ export default async function ClassProfilePage({
   });
 
   if (!klass) notFound();
+
+  const session = await auth();
+  const canDelete = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN";
 
   return (
     <>
@@ -64,6 +69,7 @@ export default async function ClassProfilePage({
               <Pencil />
               Edit
             </Button>
+            {canDelete && <DeleteClassButton classId={klass.id} name={klass.name} />}
           </>
         }
       />

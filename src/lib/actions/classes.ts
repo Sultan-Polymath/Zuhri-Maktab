@@ -53,6 +53,40 @@ export async function createClass(
   redirect(`/classes/${klass.id}`);
 }
 
+export async function deleteClass(classId: string): Promise<void> {
+  const user = await requireUser([...STAFF_ROLES]);
+
+  const klass = await prisma.class.findUnique({
+    where: { id: classId },
+    include: { _count: { select: { students: true, attendanceSessions: true } } },
+  });
+  if (!klass) return;
+
+  if (klass._count.students > 0) {
+    throw new Error(
+      `This class still has ${klass._count.students} student(s) assigned. Reassign or remove them first.`,
+    );
+  }
+  if (klass._count.attendanceSessions > 0) {
+    throw new Error("This class has attendance history and can't be deleted. Set its status to Inactive instead.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.classStaff.deleteMany({ where: { classId } });
+    await tx.classTransfer.deleteMany({ where: { OR: [{ fromClassId: classId }, { toClassId: classId }] } });
+    await tx.class.delete({ where: { id: classId } });
+    await logAudit(tx, {
+      entityType: "Class",
+      entityId: classId,
+      action: "deleted",
+      previousValue: klass,
+      userId: user.id,
+    });
+  });
+
+  revalidatePath("/classes");
+}
+
 export async function updateClass(
   classId: string,
   _prevState: ActionState,

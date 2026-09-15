@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Pencil } from "lucide-react";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/lib/age";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { DeleteStudentButton } from "@/components/students/delete-student-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotesPanel } from "@/components/notes/notes-panel";
@@ -162,16 +164,27 @@ export default async function StudentProfilePage({
     .filter(Boolean)
     .join(", ");
 
+  const session = await auth();
+  const canDelete = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN";
+
   return (
     <>
       <PageHeader
         title={displayName}
         description={STATUS_LABELS[student.status]}
         actions={
-          <Button variant="outline" nativeButton={false} render={<Link href={`/students/${student.id}/edit`} />}>
-            <Pencil />
-            Edit
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/students/${student.id}/edit`} />}
+              className="h-11 sm:h-8"
+            >
+              <Pencil />
+              Edit
+            </Button>
+            {canDelete && <DeleteStudentButton studentId={student.id} name={displayName} />}
+          </>
         }
       />
 
