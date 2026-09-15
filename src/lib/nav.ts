@@ -12,6 +12,7 @@ import {
   FileBarChart,
   Settings,
   History,
+  ClipboardList,
 } from "lucide-react";
 
 export type NavItem = {
@@ -34,6 +35,12 @@ export const navItems: NavItem[] = [
   { label: "Attendance", href: "/attendance", icon: ClipboardCheck, roles: OPERATIONS },
   { label: "Progress", href: "/progress", icon: BookOpen, roles: OPERATIONS },
   { label: "Fees & Finance", href: "/fees", icon: Wallet, roles: STAFF },
+  {
+    label: "Change Requests",
+    href: "/change-requests",
+    icon: ClipboardList,
+    roles: ["SUPER_ADMIN", "ADMIN"],
+  },
   { label: "Reports", href: "/reports", icon: FileBarChart, roles: STAFF },
   { label: "Settings", href: "/settings", icon: Settings, roles: ["SUPER_ADMIN", "ADMIN"] },
   { label: "Audit Log", href: "/audit-log", icon: History, roles: ["SUPER_ADMIN", "ADMIN"] },

@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OccupancyBadge } from "@/components/classes/occupancy-badge";
 import { RemoveFromClassButton } from "@/components/classes/remove-from-class-button";
 import { DeleteClassButton } from "@/components/classes/delete-class-button";
+import { RequestNameChangeDialog } from "@/components/change-requests/request-name-change-dialog";
+import { RequestTransferDialog } from "@/components/change-requests/request-transfer-dialog";
 import { CalendarDays } from "lucide-react";
 
 export default async function ClassProfilePage({
@@ -34,6 +36,19 @@ export default async function ClassProfilePage({
 
   const session = await auth();
   const canDelete = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN";
+
+  let ownsThisClass = false;
+  if (session?.user?.role === "TEACHER") {
+    const teacher = await prisma.teacher.findUnique({ where: { userId: session.user.id } });
+    ownsThisClass =
+      !!teacher &&
+      (klass.primaryTeacherId === teacher.id ||
+        klass.assistants.some((a) => a.teacherId === teacher.id));
+  }
+
+  const allClasses = ownsThisClass
+    ? await prisma.class.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
+    : [];
 
   return (
     <>
@@ -105,7 +120,21 @@ export default async function ClassProfilePage({
                       {age !== null ? `${age} yrs` : "age unknown"}
                     </span>
                   </Link>
-                  <RemoveFromClassButton studentId={student.id} />
+                  {canDelete && <RemoveFromClassButton studentId={student.id} />}
+                  {ownsThisClass && (
+                    <>
+                      <RequestNameChangeDialog
+                        studentId={student.id}
+                        firstName={student.firstName}
+                        lastName={student.lastName}
+                      />
+                      <RequestTransferDialog
+                        studentId={student.id}
+                        currentClassId={klass.id}
+                        classes={allClasses}
+                      />
+                    </>
+                  )}
                 </div>
                 );
               })}

@@ -40,6 +40,8 @@ model User {
   adjustmentsCreated      Adjustment[]        @relation("AdjustmentsCreated")
   notesAuthored           Note[]              @relation("NotesAuthored")
   auditLogsMade           AuditLog[]          @relation("AuditLogsMade")
+  changeRequestsMade      ChangeRequest[]     @relation("ChangeRequestsMade")
+  changeRequestsReviewed  ChangeRequest[]     @relation("ChangeRequestsReviewed")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -136,6 +138,7 @@ model Student {
   feePlans          StudentFeePlan[]
   invoices          Invoice[]
   adjustments       Adjustment[]       @relation("StudentAdjustments")
+  changeRequests    ChangeRequest[]
 
   @@index([familyId])
   @@index([currentClassId])
@@ -479,6 +482,39 @@ model Note {
   createdAt    DateTime       @default(now())
 
   @@index([entityType, entityId])
+}
+
+enum ChangeRequestType {
+  STUDENT_NAME_EDIT
+  CLASS_TRANSFER
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A teacher-proposed edit that only takes effect once an admin approves it —
+// covers renaming a student and moving them to a different class.
+model ChangeRequest {
+  id            String              @id @default(cuid())
+  type          ChangeRequestType
+  status        ChangeRequestStatus @default(PENDING)
+  studentId     String
+  student       Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User                @relation("ChangeRequestsMade", fields: [requestedById], references: [id])
+  payload       Json // { firstName, lastName } for STUDENT_NAME_EDIT, { toClassId } for CLASS_TRANSFER
+  note          String? // optional context from the requesting teacher
+  reviewedById  String?
+  reviewedBy    User?               @relation("ChangeRequestsReviewed", fields: [reviewedById], references: [id])
+  reviewNote    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@index([status])
+  @@index([studentId])
 }
 
 model AuditLog {

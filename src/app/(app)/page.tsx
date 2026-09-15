@@ -53,8 +53,17 @@ export default async function DashboardPage() {
   const now = new Date();
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  const [statusCounts, classes, allAttendanceRecords, recentActivity, unpaidInvoices, missingInfoCount] =
-    await Promise.all([
+  const isAdminViewer = session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "ADMIN";
+
+  const [
+    statusCounts,
+    classes,
+    allAttendanceRecords,
+    recentActivity,
+    unpaidInvoices,
+    missingInfoCount,
+    pendingChangeRequestCount,
+  ] = await Promise.all([
       prisma.student.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.class.findMany({
         where: { status: "ACTIVE" },
@@ -77,6 +86,7 @@ export default async function DashboardPage() {
         select: { amountDue: true, amountPaid: true, dueDate: true, studentId: true },
       }),
       prisma.student.count({ where: { OR: [{ dob: null }, { gender: null }] } }),
+      isAdminViewer ? prisma.changeRequest.count({ where: { status: "PENDING" } }) : 0,
     ]);
 
   const totalOutstanding = unpaidInvoices.reduce(
@@ -141,7 +151,8 @@ export default async function DashboardPage() {
     lowAttendanceStudents.length > 0 ||
     applications > 0 ||
     overdueStudentIds.size > 0 ||
-    missingInfoCount > 0;
+    missingInfoCount > 0 ||
+    pendingChangeRequestCount > 0;
 
   return (
     <>
@@ -241,6 +252,12 @@ export default async function DashboardPage() {
               <AlertItem href="/students?missing=1">
                 {missingInfoCount} student{missingInfoCount === 1 ? "" : "s"} imported without a
                 date of birth or gender on file — needs completing
+              </AlertItem>
+            )}
+            {pendingChangeRequestCount > 0 && (
+              <AlertItem href="/change-requests">
+                {pendingChangeRequestCount} teacher change request
+                {pendingChangeRequestCount === 1 ? "" : "s"} awaiting your approval
               </AlertItem>
             )}
           </CardContent>
