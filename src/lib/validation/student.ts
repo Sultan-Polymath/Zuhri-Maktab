@@ -2,12 +2,14 @@ import { z } from "zod";
 
 // formData.get() returns null for a field that has no matching form
 // control at all (as opposed to an empty string for one that's just
-// empty), so this must tolerate both.
+// empty), so this must tolerate both. Transforms to null (not undefined)
+// so that clearing a field in an edit form actually clears it — Prisma's
+// update() silently ignores undefined keys instead of nulling them out.
 const optionalText = z
   .string()
   .nullable()
   .optional()
-  .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
+  .transform((v) => (v && v.trim() !== "" ? v.trim() : null));
 
 export const studentStatusOptions = [
   "ENQUIRY",

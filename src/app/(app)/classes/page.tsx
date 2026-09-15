@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import type { Class, Teacher } from "@prisma/client";
 import { formatDays, formatTimeRange } from "@/lib/days";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OccupancyBadge } from "@/components/classes/occupancy-badge";
 import {
   Table,
@@ -16,6 +17,68 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+type ClassRow = Class & { primaryTeacher: Teacher | null; _count: { students: number } };
+
+// This maktab names classes after their teacher ("Ustaad"/"Ustadh" for men,
+// "Ustadah"/"Ustadha" for women) and runs boys' and girls' classes
+// separately — group the list the same way staff already think about it.
+function isGirlsClass(name: string) {
+  return /ustadah|ustadha|\bgirls?\b/i.test(name);
+}
+
+function ClassTable({ classes }: { classes: ClassRow[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Class</TableHead>
+          <TableHead>Teacher</TableHead>
+          <TableHead>Schedule</TableHead>
+          <TableHead>Room</TableHead>
+          <TableHead>Occupancy</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {classes.length === 0 && (
+          <TableRow>
+            <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+              No classes yet.
+            </TableCell>
+          </TableRow>
+        )}
+        {classes.map((klass) => (
+          <TableRow key={klass.id}>
+            <TableCell>
+              <Link href={`/classes/${klass.id}`} className="font-medium hover:underline">
+                {klass.name}
+              </Link>
+              {klass.yearGroup && (
+                <span className="ml-2 text-sm text-muted-foreground">{klass.yearGroup}</span>
+              )}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {klass.primaryTeacher?.name ?? "Unassigned"}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatDays(klass.days)} · {formatTimeRange(klass.startTime, klass.endTime)}
+            </TableCell>
+            <TableCell className="text-muted-foreground">{klass.room ?? "—"}</TableCell>
+            <TableCell>
+              <OccupancyBadge current={klass._count.students} capacity={klass.capacity} />
+            </TableCell>
+            <TableCell>
+              <Badge variant={klass.status === "ACTIVE" ? "secondary" : "outline"}>
+                {klass.status === "ACTIVE" ? "Active" : "Inactive"}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 export default async function ClassesPage() {
   const classes = await prisma.class.findMany({
     include: {
@@ -24,6 +87,9 @@ export default async function ClassesPage() {
     },
     orderBy: { name: "asc" },
   });
+
+  const girls = classes.filter((c) => isGirlsClass(c.name));
+  const boys = classes.filter((c) => !isGirlsClass(c.name));
 
   return (
     <>
@@ -38,65 +104,25 @@ export default async function ClassesPage() {
         }
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Class</TableHead>
-                <TableHead>Teacher</TableHead>
-                <TableHead>Schedule</TableHead>
-                <TableHead>Room</TableHead>
-                <TableHead>Occupancy</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {classes.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                    No classes yet.
-                  </TableCell>
-                </TableRow>
-              )}
-              {classes.map((klass) => (
-                <TableRow key={klass.id}>
-                  <TableCell>
-                    <Link
-                      href={`/classes/${klass.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {klass.name}
-                    </Link>
-                    {klass.yearGroup && (
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        {klass.yearGroup}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {klass.primaryTeacher?.name ?? "Unassigned"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDays(klass.days)} · {formatTimeRange(klass.startTime, klass.endTime)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {klass.room ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <OccupancyBadge current={klass._count.students} capacity={klass.capacity} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={klass.status === "ACTIVE" ? "secondary" : "outline"}>
-                      {klass.status === "ACTIVE" ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Boys&apos; Classes</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ClassTable classes={boys} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Girls&apos; Classes</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ClassTable classes={girls} />
+          </CardContent>
+        </Card>
+      </div>
     </>
   );
 }

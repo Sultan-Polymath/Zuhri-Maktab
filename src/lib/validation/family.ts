@@ -2,12 +2,14 @@ import { z } from "zod";
 
 // formData.get() returns null for a field that has no matching form
 // control at all (as opposed to an empty string for one that's just
-// empty), so this must tolerate both.
+// empty), so this must tolerate both. Transforms to null (not undefined)
+// so that clearing a field in an edit form actually clears it — Prisma's
+// update() silently ignores undefined keys instead of nulling them out.
 const optionalText = z
   .string()
   .nullable()
   .optional()
-  .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
+  .transform((v) => (v && v.trim() !== "" ? v.trim() : null));
 
 export const familySchema = z.object({
   surnameLabel: z.string().trim().min(1, "Family name is required"),
@@ -26,8 +28,8 @@ export const guardianSchema = z.object({
     .string()
     .nullable()
     .optional()
-    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined))
-    .pipe(z.email().optional()),
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : null))
+    .refine((v) => v === null || z.email().safeParse(v).success, "Enter a valid email address"),
   isPrimaryContact: z.boolean().default(false),
   isEmergencyContact: z.boolean().default(false),
   preferredContactMethod: z

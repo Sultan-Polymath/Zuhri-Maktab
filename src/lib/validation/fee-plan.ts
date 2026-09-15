@@ -11,7 +11,7 @@ export const feePlanSchema = z.object({
     .string()
     .nullable()
     .optional()
-    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined)),
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : null)),
 });
 
 export type FeePlanInput = z.infer<typeof feePlanSchema>;

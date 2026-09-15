@@ -1,10 +1,13 @@
 import { z } from "zod";
 
+// Transforms to null (not undefined) so that clearing a field in an edit
+// form actually clears it — Prisma's update() silently ignores undefined
+// keys instead of nulling them out.
 const optionalText = z
   .string()
   .nullable()
   .optional()
-  .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
+  .transform((v) => (v && v.trim() !== "" ? v.trim() : null));
 
 export const dayOptions = [
   "MON",
@@ -23,7 +26,7 @@ export const classSchema = z.object({
     .string()
     .nullable()
     .optional()
-    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined)),
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : null)),
   days: z.array(z.enum(dayOptions)).default([]),
   startTime: z.string().min(1, "Start time is required"),
   endTime: z.string().min(1, "End time is required"),

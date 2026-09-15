@@ -1,10 +1,13 @@
 import { z } from "zod";
 
+// Transforms to null (not undefined) so that clearing a field in an edit
+// form actually clears it — Prisma's update() silently ignores undefined
+// keys instead of nulling them out.
 const optionalText = z
   .string()
   .nullable()
   .optional()
-  .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
+  .transform((v) => (v && v.trim() !== "" ? v.trim() : null));
 
 export const teacherRoleOptions = [
   "TEACHER",
@@ -20,8 +23,8 @@ export const teacherSchema = z.object({
     .string()
     .nullable()
     .optional()
-    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined))
-    .pipe(z.email().optional()),
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : null))
+    .refine((v) => v === null || z.email().safeParse(v).success, "Enter a valid email address"),
   role: z.enum(teacherRoleOptions),
   startDate: optionalText,
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
